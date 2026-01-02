@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Anime Recommendation — Single File App</title>
+  <meta name="description" content="Search anime, mood-based recommendations, save favourites. Uses AniList GraphQL." />
+  <style>
+    :root{
+      --bg:#071026;
+      --card:#0b1220;
+      --muted:#9aa4b2;
+      --accent:#60a5fa;
+      --white:#e6eef8;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;
+      background:linear-gradient(180deg,#071026 0%, #081426 100%);
+      color:var(--white);
+      -webkit-font-smoothing:antialiased;
+      min-height:100vh;
+      display:flex;
+      flex-direction:column;
+    }
+    .wrap{max-width:1100px;margin:20px auto;padding:16px;width:95%}
+    header{display:flex;gap:16px;align-items:center;justify-content:space-between;margin-bottom:12px}
+    h1{margin:0;font-size:1.4rem}
+    .controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    input[type="search"]{
+      padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);
+      background:rgba(255,255,255,0.02);color:var(--white);min-width:260px;
+    }
+    button.btn{background:var(--accent);border:none;padding:10px 14px;border-radius:8px;color:#042135;cursor:pointer}
+    .moods{display:flex;gap:8px;flex-wrap:wrap}
+    .mood-btn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 10px;border-radius:999px;color:var(--muted);cursor:pointer}
+    main{display:grid;grid-template-columns:1fr 300px;gap:18px}
+    .content{min-height:60vh}
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+      gap:14px;
+      margin-top:12px;
+    }
+    .card{
+      background:var(--card);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;min-height:340px;
+    }
+    .cover{width:100%;height:290px;object-fit:cover;background:#111}
+    .meta{padding:12px;display:flex;flex-direction:column;gap:8px}
+    .title{margin:0;font-size:1rem}
+    .genres{color:var(--muted);font-size:0.85rem;margin:0}
+    .score{color:var(--muted);font-size:0.85rem;margin:0}
+    .card-actions{display:flex;justify-content:space-between;align-items:center;margin-top:auto}
+    .link{color:var(--accent);text-decoration:none}
+    .fav-btn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:6px 10px;border-radius:8px;color:var(--muted);cursor:pointer}
+    .fav-btn.fav{background:rgba(96,165,250,0.12);color:var(--accent);border-color:rgba(96,165,250,0.25)}
+    aside{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:12px;border-radius:10px;min-height:200px}
+    .fav-list{list-style:none;padding:0;margin:8px 0 0 0;max-height:60vh;overflow:auto}
+    .fav-item{display:flex;gap:8px;align-items:center;padding:6px;border-bottom:1px solid rgba(255,255,255,0.02)}
+    .fav-item img{width:56px;height:80px;object-fit:cover;border-radius:6px}
+    .remove{background:transparent;border:none;color:var(--muted);cursor:pointer}
+    footer{margin-top:20px;color:var(--muted);font-size:0.85rem;text-align:center}
+    .note{color:var(--muted);font-size:0.9rem;margin-top:6px}
+    .loading{color:var(--muted);margin-top:10px}
+    @media (max-width:900px){
+      main{grid-template-columns:1fr}
+      aside{order:2}
+    }
+    @media (max-width:600px){
+      .cover{height:200px}
+      header{flex-direction:column;align-items:flex-start;gap:12px}
+      .controls{width:100%}
+      input[type="search"]{flex:1;width:100%}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Anime Recommendation</h1>
+        <div class="note">Unique + fun + recruiters love APIs — single-file demo</div>
+      </div>
+
+      <div class="controls" role="search">
+        <form id="searchForm" style="display:flex;gap:8px;align-items:center">
+          <input id="q" type="search" placeholder="Search anime (e.g. Naruto)" />
+          <button class="btn" type="submit">Search</button>
+        </form>
+      </div>
+    </header>
+
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+      <div class="moods" id="moodButtons">
+        <!-- mood buttons injected here -->
+      </div>
+      <div style="margin-left:auto">
+        <button id="clearFavs" class="mood-btn">Clear all favourites</button>
+      </div>
+    </div>
+
+    <main>
+      <section class="content" aria-live="polite">
+        <div id="status" class="loading" hidden>Loading…</div>
+
+        <div id="resultsContainer">
+          <!-- results injected here -->
+        </div>
+      </section>
+
+      <aside>
+        <strong>Favorites</strong>
+        <ul class="fav-list" id="favList">
+          <!-- favorites -->
+        </ul>
+        <div style="margin-top:8px" class="note">Favourites are stored in localStorage. Add auth & DB for cross-device persistence.</div>
+      </aside>
+    </main>
+
+    <footer>
+      Built with <a class="link" href="https://graphql.anilist.co" target="_blank" rel="noreferrer">AniList GraphQL</a> • Make a repo and deploy (Vercel / Netlify)
+    </footer>
+  </div>
+
+  <script>
+    // Single-file Anime Recommendation App
+    // Uses AniList GraphQL endpoint directly from the browser.
+    // Features:
+    // - Search by title
+    // - Mood-based recommendations (mood -> genres)
+    // - Save / remove favourites (localStorage)
+    // - Responsive UI
+
+    const MOOD_MAP = {
+      energetic: ['Action', 'Adventure', 'Shounen'],
+      calm: ['Slice of Life', 'Romance', 'Iyashikei'],
+      funny: ['Comedy', 'Slice of Life'],
+      melancholic: ['Drama', 'Psychological'],
+      mysterious: ['Supernatural', 'Mystery']
+    };
+
+    const QUERY_SEARCH = `
+      query ($search: String, $page: Int, $perPage: Int) {
+        Page(page: $page, perPage: $perPage) {
+          media(search: $search, type: ANIME) {
+            id
+            title { romaji english native }
+            coverImage { large medium }
+            description(asHtml: false)
+            episodes
+            genres
+            averageScore
+            siteUrl
+          }
+        }
+      }
+    `;
+
+    const QUERY_GENRES = `
+      query ($genres: [String], $page: Int, $perPage: Int) {
+        Page(page: $page, perPage: $perPage) {
+          media(type: ANIME, genre_in: $genres, sort: POPULARITY_DESC) {
+            id
+            title { romaji english native }
+            coverImage { large medium }
+            description(asHtml: false)
+            episodes
+            genres
+            averageScore
+            siteUrl
+          }
+        }
+      }
+    `;
+
+    const AniListURL = 'https://graphql.anilist.co';
+
+    // DOM elements
+    const resultsContainer = document.getElementById('resultsContainer');
+    const favList = document.getElementById('favList');
+    const statusEl = document.getElementById('status');
+    const qInput = document.getElementById('q');
+    const searchForm = document.getElementById('searchForm');
+    const moodButtons = document.getElementById('moodButtons');
+    const clearFavsBtn = document.getElementById('clearFavs');
+
+    // State
+    let favourites = [];
+
+    // Init
+    function init() {
+      // Render mood buttons
+      Object.keys(MOOD_MAP).forEach(mood => {
+        const btn = document.createElement('button');
+        btn.className = 'mood-btn';
+        btn.textContent = mood;
+        btn.addEventListener('click', () => handleMood(mood));
+        moodButtons.appendChild(btn);
+      });
+
+      // Load favourites
+      const saved = localStorage.getItem('anime:favs:v1');
+      if (saved) {
+        try { favourites = JSON.parse(saved) } catch(e){ favourites = [] }
+      }
+      renderFavs();
+
+      // Events
+      searchForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const q = qInput.value.trim();
+        if (!q) return;
+        await search(q);
+      });
+
+      clearFavsBtn.addEventListener('click', () => {
+        if (!confirm('Remove all favourites?')) return;
+        favourites = [];
+        saveFavs();
+        renderFavs();
+      });
+
+      // Optional: Load a default mood on first load
+      // handleMood('energetic');
+    }
+
+    // Helpers
+    function setLoading(on) {
+      statusEl.hidden = !on;
+    }
+
+    function saveFavs() {
+      localStorage.setItem('anime:favs:v1', JSON.stringify(favourites));
+    }
+
+    function isFav(id) {
+      return favourites.some(f => f.id === id);
+    }
+
+    function toggleFav(anime) {
+      const idx = favourites.findIndex(f => f.id === anime.id);
+      if (idx === -1) {
+        favourites.unshift(anime);
+      } else {
+        favourites.splice(idx, 1);
+      }
+      saveFavs();
+      renderFavs();
+      // update result buttons
+      const btn = document.querySelector(`[data-id="${anime.id}"]`);
+      if (btn) {
+        btn.textContent = isFav(anime.id) ? 'Remove' : 'Save';
+        btn.classList.toggle('fav', isFav(anime.id));
+      }
+    }
+
+    function renderFavs() {
+      favList.innerHTML = '';
+      if (favourites.length === 0) {
+        const li = document.createElement('li');
+        li.className = 'fav-item';
+        li.textContent = 'No favourites yet';
+        favList.appendChild(li);
+        return;
+      }
+      favourites.forEach(f => {
+        const li = document.createElement('li');
+        li.className = 'fav-item';
+        const img = document.createElement('img');
+        img.src = f.coverImage?.medium || f.coverImage?.large || '';
+        img.alt = f.title?.english || f.title?.romaji || '';
+        const meta = document.createElement('div');
+        meta.style.flex = '1';
+        const title = document.createElement('div');
+        title.style.fontWeight = '600';
+        title.textContent = f.title?.english || f.title?.romaji || f.title?.native || 'Untitled';
+        const a = document.createElement('a');
+        a.href = f.siteUrl || '#';
+        a.textContent = 'Details';
+        a.className = 'link';
+        a.target = '_blank';
+        a.rel = 'noreferrer';
+        const remove = document.createElement('button');
+        remove.className = 'remove';
+        remove.textContent = 'Remove';
+        remove.addEventListener('click', () => {
+          favourites = favourites.filter(x => x.id !== f.id);
+          saveFavs();
+          renderFavs();
+          // update result buttons
+          const btn = document.querySelector(`[data-id="${f.id}"]`);
+          if (btn) {
+            btn.textContent = 'Save';
+            btn.classList.remove('fav');
+          }
+        });
+        meta.appendChild(title);
+        meta.appendChild(a);
+        li.appendChild(img);
+        li.appendChild(meta);
+        li.appendChild(remove);
+        favList.appendChild(li);
+      });
+    }
+
+    function titleFor(a) {
+      return a.title?.english || a.title?.romaji || a.title?.native || 'Untitled';
+    }
+
+    function renderResults(list, heading) {
+      const container = document.createElement('div');
+      if (heading) {
+        const h = document.createElement('h2');
+        h.textContent = heading;
+        container.appendChild(h);
+      }
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+      list.forEach(a => {
+        const card = document.createElement('article');
+        card.className = 'card';
+        const img = document.createElement('img');
+        img.className = 'cover';
+        img.src = a.coverImage?.large || a.coverImage?.medium || '';
+        img.alt = titleFor(a);
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        const t = document.createElement('h3');
+        t.className = 'title';
+        t.textContent = titleFor(a);
+        const genres = document.createElement('p');
+        genres.className = 'genres';
+        genres.textContent = (a.genres || []).slice(0,3).join(' • ');
+        const score = document.createElement('p');
+        score.className = 'score';
+        score.textContent = 'Score: ' + (a.averageScore ?? 'N/A');
+        const actions = document.createElement('div');
+        actions.className = 'card-actions';
+        const link = document.createElement('a');
+        link.className = 'link';
+        link.href = a.siteUrl || '#';
+        link.target = '_blank';
+        link.rel = 'noreferrer';
+        link.textContent = 'Details';
+        const fav = document.createElement('button');
+        fav.className = 'fav-btn' + (isFav(a.id) ? ' fav' : '');
+        fav.dataset.id = a.id;
+        fav.textContent = isFav(a.id) ? 'Remove' : 'Save';
+        fav.addEventListener('click', () => {
+          toggleFav(a);
+        });
+        actions.appendChild(link);
+        actions.appendChild(fav);
+        meta.appendChild(t);
+        meta.appendChild(genres);
+        meta.appendChild(score);
+        meta.appendChild(actions);
+        card.appendChild(img);
+        card.appendChild(meta);
+        grid.appendChild(card);
+      });
+      container.appendChild(grid);
+      // replace resultsContainer content
+      resultsContainer.innerHTML = '';
+      resultsContainer.appendChild(container);
+    }
+
+    async function fetchAniList(query, variables) {
+      const res = await fetch(AniListURL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, variables })
+      });
+      if (!res.ok) {
+        throw new Error('Network error: ' + res.status);
+      }
+      const json = await res.json();
+      if (json.errors) {
+        console.warn('AniList errors', json.errors);
+      }
+      return json;
+    }
+
+    async function search(q) {
+      try {
+        setLoading(true);
+        const json = await fetchAniList(QUERY_SEARCH, { search: q, page: 1, perPage: 24 });
+        const media = json.data?.Page?.media || [];
+        if (media.length === 0) {
+          resultsContainer.innerHTML = '<p class="note">No results found.</p>';
+          return;
+        }
+        renderResults(media, 'Search results');
+      } catch (err) {
+        console.error(err);
+        resultsContainer.innerHTML = '<p class="note">Search failed. Try again later.</p>';
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function handleMood(mood) {
+      try {
+        setLoading(true);
+        const genres = MOOD_MAP[mood] || [];
+        const json = await fetchAniList(QUERY_GENRES, { genres, page: 1, perPage: 24 });
+        const media = json.data?.Page?.media || [];
+        if (media.length === 0) {
+          resultsContainer.innerHTML = '<p class="note">No recommendations found for that mood.</p>';
+          return;
+        }
+        renderResults(media, `Mood: ${mood}`);
+      } catch (err) {
+        console.error(err);
+        resultsContainer.innerHTML = '<p class="note">Recommendations failed. Try again later.</p>';
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Initialize app
+    init();
+  </script>
+</body>
+</html>
