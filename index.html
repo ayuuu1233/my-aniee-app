@@ -3,58 +3,112 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Anime Recommendation — Single File App</title>
+  <title>Anime Recommendation — Neon Edition</title>
   <meta name="description" content="Search anime, mood-based recommendations, save favourites. Uses AniList GraphQL." />
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
   <style>
     :root{
-      --bg:#071026;
-      --card:#0b1220;
+      --bg-1:#071026;
+      --bg-2:#0b1530;
+      --card:#071229;
       --muted:#9aa4b2;
       --accent:#60a5fa;
+      --neon:#ff7ac2;
+      --neon-2:#60e6ff;
       --white:#e6eef8;
+      --glass: rgba(255,255,255,0.04);
+      --glass-2: rgba(255,255,255,0.02);
     }
     *{box-sizing:border-box}
+    html,body{height:100%}
     body{
       margin:0;
-      font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;
-      background:linear-gradient(180deg,#071026 0%, #081426 100%);
+      font-family:"M PLUS Rounded 1c", "Noto Sans JP", Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: radial-gradient(1000px 400px at 10% 10%, rgba(96,165,250,0.06), transparent),
+                  linear-gradient(180deg,var(--bg-1) 0%, var(--bg-2) 100%);
       color:var(--white);
       -webkit-font-smoothing:antialiased;
       min-height:100vh;
       display:flex;
       flex-direction:column;
+      overflow-x:hidden;
+      position:relative;
     }
-    .wrap{max-width:1100px;margin:20px auto;padding:16px;width:95%}
+
+    /* animated subtle gradient sweep */
+    .bg-sweep {
+      position:fixed; inset:0; pointer-events:none; z-index:0;
+      background: linear-gradient(120deg, rgba(96,165,250,0.04), rgba(255,122,194,0.03), transparent);
+      mix-blend-mode: screen; opacity:0.9; animation: sweep 10s linear infinite;
+    }
+    @keyframes sweep { 0% { transform: translateX(-10%);} 50% {transform: translateX(10%);} 100% {transform: translateX(-10%);} }
+
+    /* tiny floating particles for vibe */
+    .particles { position:fixed; inset:0; pointer-events:none; z-index:0; opacity:0.7; }
+    .particle { position:absolute; width:6px; height:6px; border-radius:50%; background:linear-gradient(180deg,var(--neon),var(--neon-2)); filter:blur(6px); animation: float 8s linear infinite; opacity:0.5;}
+    @keyframes float { from { transform: translateY(0) } to { transform: translateY(-120vh) } }
+
+    .wrap{max-width:1100px;margin:28px auto;padding:18px;width:95%;position:relative;z-index:2}
     header{display:flex;gap:16px;align-items:center;justify-content:space-between;margin-bottom:12px}
-    h1{margin:0;font-size:1.4rem}
+    h1{margin:0;font-size:1.6rem;letter-spacing:0.6px}
+    .subtitle { color:var(--neon); font-weight:700; margin-left:8px; font-size:0.95rem; }
+    .jp { color:var(--muted); font-size:0.9rem; margin-top:4px; display:block; }
+
     .controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-    input[type="search"]{
-      padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);
-      background:rgba(255,255,255,0.02);color:var(--white);min-width:260px;
+    form.search {
+      display:flex; gap:8px; align-items:center; background:var(--glass); padding:8px; border-radius:12px;
+      border:1px solid rgba(255,255,255,0.03); box-shadow: 0 6px 18px rgba(2,6,23,0.6), inset 0 -1px 0 rgba(255,255,255,0.02);
     }
-    button.btn{background:var(--accent);border:none;padding:10px 14px;border-radius:8px;color:#042135;cursor:pointer}
+    input[type="search"]{
+      padding:12px 14px;border-radius:10px;border:none;background:transparent;color:var(--white);
+      min-width:320px; font-size:1rem; outline:none;
+    }
+
+    button.btn {
+      background: linear-gradient(90deg,var(--neon),var(--neon-2));
+      border:none;padding:10px 14px;border-radius:10px;color:#041726;cursor:pointer;font-weight:700;
+      box-shadow: 0 6px 18px rgba(96,165,250,0.12);
+      position:relative; overflow:hidden;
+    }
+    /* sparkle animation on search button */
+    .btn::after {
+      content:""; position:absolute; inset:0; background:linear-gradient(90deg, rgba(255,255,255,0.12), transparent);
+      transform: translateX(-120%); transition:transform .6s ease;
+    }
+    .btn:hover::after { transform: translateX(20%); }
+
     .moods{display:flex;gap:8px;flex-wrap:wrap}
-    .mood-btn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 10px;border-radius:999px;color:var(--muted);cursor:pointer}
-    main{display:grid;grid-template-columns:1fr 300px;gap:18px}
+    .mood-btn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 12px;border-radius:999px;color:var(--muted);cursor:pointer; font-weight:600;}
+    .mood-btn:hover { color:var(--white); border-color: rgba(255,255,255,0.12); box-shadow: 0 6px 18px rgba(96,165,250,0.04); transform: translateY(-3px); transition: all .18s ease; }
+
+    main{display:grid;grid-template-columns:1fr 320px;gap:18px; align-items:start}
     .content{min-height:60vh}
     .grid{
       display:grid;
       grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
-      gap:14px;
+      gap:16px;
       margin-top:12px;
     }
     .card{
-      background:var(--card);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;min-height:340px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.015), transparent);
+      border-radius:12px; overflow:hidden; display:flex; flex-direction:column; min-height:320px;
+      border: 1px solid rgba(255,255,255,0.03);
+      transition: transform .22s cubic-bezier(.2,.9,.2,1), box-shadow .22s;
+      position:relative;
     }
-    .cover{width:100%;height:290px;object-fit:cover;background:#111}
+    .card:hover { transform: translateY(-8px) scale(1.01); box-shadow: 0 18px 40px rgba(2,6,23,0.7), 0 0 18px rgba(96,165,250,0.06) }
+    .cover { width:100%; height:280px; object-fit:cover; background:#0a0f1a; display:block; }
+    .skeleton { background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); }
     .meta{padding:12px;display:flex;flex-direction:column;gap:8px}
     .title{margin:0;font-size:1rem}
-    .genres{color:var(--muted);font-size:0.85rem;margin:0}
-    .score{color:var(--muted);font-size:0.85rem;margin:0}
+    .genres{color:var(--muted);font-size:0.85rem;margin:0; display:flex; gap:6px; flex-wrap:wrap}
+    .genre-chip { padding:4px 8px; border-radius:999px; background:var(--glass-2); color:var(--muted); font-size:0.78rem; }
+    .score{color:var(--muted);font-size:0.9rem;margin:0; display:flex; gap:6px; align-items:center;}
+    .stars { color: #ffd166; font-size:0.95rem; letter-spacing:2px; display:inline-block; }
     .card-actions{display:flex;justify-content:space-between;align-items:center;margin-top:auto}
-    .link{color:var(--accent);text-decoration:none}
+    .link{color:var(--neon-2);text-decoration:none;font-weight:700}
     .fav-btn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:6px 10px;border-radius:8px;color:var(--muted);cursor:pointer}
-    .fav-btn.fav{background:rgba(96,165,250,0.12);color:var(--accent);border-color:rgba(96,165,250,0.25)}
+    .fav-btn.fav{background:linear-gradient(90deg,var(--neon),var(--neon-2)); color:#041726; border-color:transparent; box-shadow: 0 8px 30px rgba(255,122,194,0.08);}
     aside{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:12px;border-radius:10px;min-height:200px}
     .fav-list{list-style:none;padding:0;margin:8px 0 0 0;max-height:60vh;overflow:auto}
     .fav-item{display:flex;gap:8px;align-items:center;padding:6px;border-bottom:1px solid rgba(255,255,255,0.02)}
@@ -63,40 +117,54 @@
     footer{margin-top:20px;color:var(--muted);font-size:0.85rem;text-align:center}
     .note{color:var(--muted);font-size:0.9rem;margin-top:6px}
     .loading{color:var(--muted);margin-top:10px}
-    @media (max-width:900px){
+    :focus-visible { outline: 3px solid rgba(255,122,194,0.14); outline-offset: 3px; border-radius:8px; }
+    @media (max-width:1000px){
       main{grid-template-columns:1fr}
       aside{order:2}
     }
     @media (max-width:600px){
       .cover{height:200px}
       header{flex-direction:column;align-items:flex-start;gap:12px}
-      .controls{width:100%}
-      input[type="search"]{flex:1;width:100%}
+      input[type="search"]{min-width:120px}
     }
   </style>
 </head>
 <body>
-  <div class="wrap">
+  <div class="bg-sweep"></div>
+  <div class="particles" aria-hidden="true">
+    <div class="particle" style="left:8%; bottom:-20%; animation-duration:20s; width:8px; height:8px; opacity:0.9"></div>
+    <div class="particle" style="left:25%; bottom:-10%; animation-duration:14s; width:6px; height:6px"></div>
+    <div class="particle" style="left:55%; bottom:-30%; animation-duration:18s; width:10px; height:10px; opacity:0.7"></div>
+    <div class="particle" style="left:78%; bottom:-25%; animation-duration:22s; width:6px; height:6px;"></div>
+  </div>
+
+  <div class="wrap" role="application">
     <header>
       <div>
-        <h1>Anime Recommendation</h1>
-        <div class="note">Unique + fun + recruiters love APIs — single-file demo</div>
+        <h1>Anime Recommendation <span class="subtitle">NEON EDITION</span></h1>
+        <span class="jp">アニメのおすすめ • AniList</span>
       </div>
 
       <div class="controls" role="search">
-        <form id="searchForm" style="display:flex;gap:8px;align-items:center">
-          <input id="q" type="search" placeholder="Search anime (e.g. Naruto)" />
-          <button class="btn" type="submit">Search</button>
+        <form id="searchForm" class="search" style="align-items:center;">
+          <input id="q" type="search" placeholder="Search anime (e.g. Naruto, One Piece)" aria-label="Search anime" />
+          <button class="btn" type="submit" title="Search">
+            <!-- small sparkle SVG -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:middle">
+              <path d="M12 2l1.8 4.2L18 8l-4.2 1.8L12 14l-1.8-4.2L6 8l4.2-1.8L12 2z" fill="#041726"/>
+            </svg>
+            <span style="margin-left:8px">Search</span>
+          </button>
         </form>
       </div>
     </header>
 
     <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
-      <div class="moods" id="moodButtons">
+      <div class="moods" id="moodButtons" aria-label="Moods">
         <!-- mood buttons injected here -->
       </div>
       <div style="margin-left:auto">
-        <button id="clearFavs" class="mood-btn">Clear all favourites</button>
+        <button id="clearFavs" class="mood-btn" type="button">Clear all favourites</button>
       </div>
     </div>
 
@@ -119,18 +187,15 @@
     </main>
 
     <footer>
-      Built with <a class="link" href="https://graphql.anilist.co" target="_blank" rel="noreferrer">AniList GraphQL</a> • Make a repo and deploy (Vercel / Netlify)
+      Built with <a class="link" href="https://graphql.anilist.co" target="_blank" rel="noreferrer">AniList GraphQL</a> • Deploy to Vercel / Netlify
     </footer>
   </div>
 
   <script>
-    // Single-file Anime Recommendation App
-    // Uses AniList GraphQL endpoint directly from the browser.
-    // Features:
-    // - Search by title
-    // - Mood-based recommendations (mood -> genres)
-    // - Save / remove favourites (localStorage)
-    // - Responsive UI
+    // Neon + Anime vibe improvements:
+    // - animated background/particles, neon accents
+    // - image fallback + skeleton, lazy load
+    // - search button sparkle, genre chips, star ratings
 
     const MOOD_MAP = {
       energetic: ['Action', 'Adventure', 'Shounen'],
@@ -175,6 +240,15 @@
     `;
 
     const AniListURL = 'https://graphql.anilist.co';
+    const FETCH_TIMEOUT = 15000; // ms
+    const FALLBACK_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="800" viewBox="0 0 600 800">
+        <rect width="100%" height="100%" fill="#071229"/>
+        <g fill="#2b3b5a" opacity="0.6"><rect x="60" y="120" width="480" height="560" rx="8"/></g>
+        <text x="50%" y="48%" text-anchor="middle" fill="#8fa6d6" font-family="Noto Sans JP, Arial" font-size="28">No Image</text>
+        <text x="50%" y="54%" text-anchor="middle" fill="#5b7aa0" font-family="Noto Sans JP, Arial" font-size="16">cover unavailable</text>
+      </svg>`
+    );
 
     // DOM elements
     const resultsContainer = document.getElementById('resultsContainer');
@@ -188,25 +262,34 @@
     // State
     let favourites = [];
 
-    // Init
+    function debounce(fn, wait) {
+      let t;
+      return (...args) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn.apply(this, args), wait);
+      };
+    }
+
     function init() {
-      // Render mood buttons
-      Object.keys(MOOD_MAP).forEach(mood => {
+      // mood buttons
+      Object.keys(MOOD_MAP).forEach(m => {
         const btn = document.createElement('button');
+        btn.type = 'button';
         btn.className = 'mood-btn';
-        btn.textContent = mood;
-        btn.addEventListener('click', () => handleMood(mood));
+        btn.textContent = m;
+        btn.title = `Recommend: ${MOOD_MAP[m].join(', ')}`;
+        btn.addEventListener('click', () => handleMood(m));
         moodButtons.appendChild(btn);
       });
 
-      // Load favourites
+      // load favs
       const saved = localStorage.getItem('anime:favs:v1');
       if (saved) {
         try { favourites = JSON.parse(saved) } catch(e){ favourites = [] }
       }
       renderFavs();
 
-      // Events
+      // events
       searchForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const q = qInput.value.trim();
@@ -214,44 +297,39 @@
         await search(q);
       });
 
+      qInput.addEventListener('input', debounce(async (e) => {
+        const q = e.target.value.trim();
+        if (q.length >= 3) {
+          await search(q);
+        }
+      }, 550));
+
       clearFavsBtn.addEventListener('click', () => {
         if (!confirm('Remove all favourites?')) return;
         favourites = [];
         saveFavs();
         renderFavs();
       });
-
-      // Optional: Load a default mood on first load
-      // handleMood('energetic');
     }
 
-    // Helpers
-    function setLoading(on) {
+    function setLoading(on, message = 'Loading…') {
       statusEl.hidden = !on;
+      if (on) statusEl.textContent = message;
     }
 
-    function saveFavs() {
-      localStorage.setItem('anime:favs:v1', JSON.stringify(favourites));
-    }
-
-    function isFav(id) {
-      return favourites.some(f => f.id === id);
-    }
+    function saveFavs() { localStorage.setItem('anime:favs:v1', JSON.stringify(favourites)); }
+    function isFav(id) { return favourites.some(f => f.id === id); }
 
     function toggleFav(anime) {
       const idx = favourites.findIndex(f => f.id === anime.id);
-      if (idx === -1) {
-        favourites.unshift(anime);
-      } else {
-        favourites.splice(idx, 1);
-      }
-      saveFavs();
-      renderFavs();
-      // update result buttons
+      if (idx === -1) favourites.unshift(anime); else favourites.splice(idx,1);
+      saveFavs(); renderFavs();
       const btn = document.querySelector(`[data-id="${anime.id}"]`);
       if (btn) {
-        btn.textContent = isFav(anime.id) ? 'Remove' : 'Save';
-        btn.classList.toggle('fav', isFav(anime.id));
+        const pressed = isFav(anime.id);
+        btn.textContent = pressed ? 'Remove' : 'Save';
+        btn.classList.toggle('fav', pressed);
+        btn.setAttribute('aria-pressed', pressed ? 'true' : 'false');
       }
     }
 
@@ -268,12 +346,14 @@
         const li = document.createElement('li');
         li.className = 'fav-item';
         const img = document.createElement('img');
-        img.src = f.coverImage?.medium || f.coverImage?.large || '';
+        img.src = f.coverImage?.medium || f.coverImage?.large || FALLBACK_SVG;
         img.alt = f.title?.english || f.title?.romaji || '';
+        img.loading = 'lazy';
+        img.onerror = () => { img.onerror = null; img.src = FALLBACK_SVG; };
         const meta = document.createElement('div');
         meta.style.flex = '1';
         const title = document.createElement('div');
-        title.style.fontWeight = '600';
+        title.style.fontWeight = '700';
         title.textContent = f.title?.english || f.title?.romaji || f.title?.native || 'Untitled';
         const a = document.createElement('a');
         a.href = f.siteUrl || '#';
@@ -283,17 +363,14 @@
         a.rel = 'noreferrer';
         const remove = document.createElement('button');
         remove.className = 'remove';
+        remove.type = 'button';
         remove.textContent = 'Remove';
         remove.addEventListener('click', () => {
           favourites = favourites.filter(x => x.id !== f.id);
           saveFavs();
           renderFavs();
-          // update result buttons
           const btn = document.querySelector(`[data-id="${f.id}"]`);
-          if (btn) {
-            btn.textContent = 'Save';
-            btn.classList.remove('fav');
-          }
+          if (btn) { btn.textContent = 'Save'; btn.classList.remove('fav'); btn.setAttribute('aria-pressed','false'); }
         });
         meta.appendChild(title);
         meta.appendChild(a);
@@ -304,8 +381,14 @@
       });
     }
 
-    function titleFor(a) {
-      return a.title?.english || a.title?.romaji || a.title?.native || 'Untitled';
+    function titleFor(a) { return a.title?.english || a.title?.romaji || a.title?.native || 'Untitled'; }
+
+    function starsHtml(avg) {
+      if (!avg) return '<span class="stars">—</span>';
+      const outOf5 = Math.round((avg/100) * 5); // AniList averageScore is /100
+      let s = '';
+      for (let i=0;i<5;i++) s += i < outOf5 ? '★' : '☆';
+      return `<span class="stars" aria-hidden="true">${s}</span>`;
     }
 
     function renderResults(list, heading) {
@@ -320,21 +403,35 @@
       list.forEach(a => {
         const card = document.createElement('article');
         card.className = 'card';
+        // image wrapper for skeleton
         const img = document.createElement('img');
-        img.className = 'cover';
-        img.src = a.coverImage?.large || a.coverImage?.medium || '';
+        img.className = 'cover skeleton';
+        img.src = a.coverImage?.large || a.coverImage?.medium || FALLBACK_SVG;
         img.alt = titleFor(a);
+        img.loading = 'lazy';
+        img.onerror = () => { img.onerror = null; img.src = FALLBACK_SVG; img.classList.remove('skeleton'); };
+        img.onload = () => { img.classList.remove('skeleton'); };
+
         const meta = document.createElement('div');
         meta.className = 'meta';
         const t = document.createElement('h3');
         t.className = 'title';
         t.textContent = titleFor(a);
-        const genres = document.createElement('p');
+        const jp = document.createElement('div');
+        jp.className = 'jp';
+        jp.textContent = a.title?.native ? `「${a.title.native}」` : '';
+        const genres = document.createElement('div');
         genres.className = 'genres';
-        genres.textContent = (a.genres || []).slice(0,3).join(' • ');
-        const score = document.createElement('p');
+        (a.genres || []).slice(0,4).forEach(g => {
+          const chip = document.createElement('span');
+          chip.className = 'genre-chip';
+          chip.textContent = g;
+          genres.appendChild(chip);
+        });
+        const score = document.createElement('div');
         score.className = 'score';
-        score.textContent = 'Score: ' + (a.averageScore ?? 'N/A');
+        score.innerHTML = `${starsHtml(a.averageScore)} <span style="color:var(--muted);font-size:0.85rem"> ${a.averageScore ?? 'N/A'}</span>`;
+
         const actions = document.createElement('div');
         actions.className = 'card-actions';
         const link = document.createElement('a');
@@ -344,82 +441,83 @@
         link.rel = 'noreferrer';
         link.textContent = 'Details';
         const fav = document.createElement('button');
+        fav.type = 'button';
         fav.className = 'fav-btn' + (isFav(a.id) ? ' fav' : '');
         fav.dataset.id = a.id;
-        fav.textContent = isFav(a.id) ? 'Remove' : 'Save';
-        fav.addEventListener('click', () => {
-          toggleFav(a);
-        });
+        const pressed = isFav(a.id);
+        fav.textContent = pressed ? 'Remove' : 'Save';
+        fav.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+        fav.addEventListener('click', () => { toggleFav(a); });
         actions.appendChild(link);
         actions.appendChild(fav);
+
         meta.appendChild(t);
+        meta.appendChild(jp);
         meta.appendChild(genres);
         meta.appendChild(score);
         meta.appendChild(actions);
+
         card.appendChild(img);
         card.appendChild(meta);
         grid.appendChild(card);
       });
       container.appendChild(grid);
-      // replace resultsContainer content
       resultsContainer.innerHTML = '';
       resultsContainer.appendChild(container);
     }
 
+    // fetch with timeout + surface AniList errors
     async function fetchAniList(query, variables) {
-      const res = await fetch(AniListURL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, variables })
-      });
-      if (!res.ok) {
-        throw new Error('Network error: ' + res.status);
-      }
-      const json = await res.json();
-      if (json.errors) {
-        console.warn('AniList errors', json.errors);
-      }
-      return json;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+      try {
+        const res = await fetch(AniListURL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query, variables }),
+          signal: controller.signal
+        });
+        if (!res.ok) throw new Error('Network error: ' + res.status);
+        const json = await res.json();
+        if (json.errors && json.errors.length) {
+          const msg = json.errors.map(e => e.message).join('; ');
+          throw new Error('AniList error: ' + msg);
+        }
+        return json;
+      } catch (err) {
+        if (err.name === 'AbortError') throw new Error('Request timed out');
+        throw err;
+      } finally { clearTimeout(timer); }
     }
 
     async function search(q) {
       try {
-        setLoading(true);
+        setLoading(true, 'Searching…');
         const json = await fetchAniList(QUERY_SEARCH, { search: q, page: 1, perPage: 24 });
         const media = json.data?.Page?.media || [];
-        if (media.length === 0) {
-          resultsContainer.innerHTML = '<p class="note">No results found.</p>';
-          return;
-        }
-        renderResults(media, 'Search results');
+        if (media.length === 0) { resultsContainer.innerHTML = '<p class="note">No results found.</p>'; return; }
+        renderResults(media, `Search: ${q}`);
       } catch (err) {
         console.error(err);
-        resultsContainer.innerHTML = '<p class="note">Search failed. Try again later.</p>';
-      } finally {
-        setLoading(false);
-      }
+        resultsContainer.innerHTML = `<p class="note">Search failed: ${err.message}</p>`;
+      } finally { setLoading(false); }
     }
 
     async function handleMood(mood) {
       try {
-        setLoading(true);
+        setLoading(true, `Vibe: ${mood}…`);
         const genres = MOOD_MAP[mood] || [];
         const json = await fetchAniList(QUERY_GENRES, { genres, page: 1, perPage: 24 });
         const media = json.data?.Page?.media || [];
-        if (media.length === 0) {
-          resultsContainer.innerHTML = '<p class="note">No recommendations found for that mood.</p>';
-          return;
-        }
+        if (media.length === 0) { resultsContainer.innerHTML = '<p class="note">No recommendations found for that mood.</p>'; return; }
         renderResults(media, `Mood: ${mood}`);
       } catch (err) {
         console.error(err);
-        resultsContainer.innerHTML = '<p class="note">Recommendations failed. Try again later.</p>';
-      } finally {
-        setLoading(false);
-      }
+        resultsContainer.innerHTML = `<p class="note">Recommendations failed: ${err.message}</p>`;
+      } finally { setLoading(false); }
     }
 
-    // Initialize app
+    // start
     init();
   </script>
 </body>
